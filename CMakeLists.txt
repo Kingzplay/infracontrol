@@ -18,6 +18,7 @@ pico_sdk_init()
 add_executable(${CMAKE_PROJECT_NAME}
     main.c
 	sh1106.c
+	ui.c
 )
 
 # Add pico_stdlib library which aggregates commonly used features

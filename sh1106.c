@@ -5,9 +5,13 @@
 #include "sh1106.h"
 
 i2c_inst_t *sh1106_i2c_instance = i2c0;
-uint sh1106_i2c_baudrate = 10000;
+uint sh1106_i2c_baudrate = 1000;
 uint sh1106_i2c_address = 0x78 >> 1;
 
+uint sh1106_display_width = 128;	// 128 pixels are shown in width
+uint sh1106_display_height = 64;	// 64 pixels are shown in height
+
+uint sh1106_display_offset = 2;		
 
 // Complete 5x8 ASCII Font Table (Characters 32 to 126); thank you Google Gemini
 uint8_t font[][5] = {
@@ -82,7 +86,7 @@ uint8_t font[][5] = {
     {0x38, 0x44, 0x44, 0x48, 0x7f}, // 100: d
     {0x38, 0x54, 0x54, 0x54, 0x18}, // 101: e
     {0x08, 0x7e, 0x09, 0x01, 0x02}, // 102: f
-    {0x0c, 0x52, 0x52, 0x52, 0x3e}, // 103: g
+	{0x0c, 0x52, 0x52, 0x52, 0x3e}, // 103: g
     {0x7f, 0x08, 0x04, 0x04, 0x78}, // 104: h
     {0x00, 0x44, 0x7d, 0x40, 0x00}, // 105: i
     {0x20, 0x40, 0x44, 0x3d, 0x00}, // 106: j
@@ -105,7 +109,11 @@ uint8_t font[][5] = {
     {0x00, 0x08, 0x36, 0x41, 0x00}, // 123: {
     {0x00, 0x00, 0x7f, 0x00, 0x00}, // 124: |
     {0x00, 0x41, 0x36, 0x08, 0x00}, // 125: }
-    {0x10, 0x08, 0x08, 0x10, 0x08}  // 126: ~
+    {0x10, 0x08, 0x08, 0x10, 0x08}, // 126: ~
+	{0xFF, 0x7E, 0x3C, 0x18, 0x00},	// 127: right arrow tip
+	{0x00, 0x18, 0x3C, 0x7E, 0xFF},	// 128: left arrow tip
+	{0x40, 0x60, 0x70, 0x60, 0x40},	// 129: up arrow tip
+	{0x01, 0x03, 0x07, 0x03, 0x01}, // 130: down arrow tip
 };
 
 void sh1106_write_ram(uint8_t byte) {
@@ -116,6 +124,7 @@ void sh1106_write_ram(uint8_t byte) {
 	
 	// send i2c data
 	i2c_write_blocking(sh1106_i2c_instance, sh1106_i2c_address, data, sizeof(data), false);
+	sleep_ms(1);
 }
 
 void sh1106_send_cmd(uint8_t cmd) {
@@ -126,10 +135,11 @@ void sh1106_send_cmd(uint8_t cmd) {
 	
 	// send i2c data
 	i2c_write_blocking(sh1106_i2c_instance, sh1106_i2c_address, data, sizeof(data), false);
-
+	sleep_ms(1);
 }
 
 void sh1106_set_column(uint8_t col) {
+	col += sh1106_display_offset;
 	sh1106_send_cmd(0x10 | col >> 4); 	// set higher bits
 	sh1106_send_cmd(0x00 | col & 0x0F);	// set lower bits
 }
@@ -141,34 +151,39 @@ void sh1106_set_page(uint8_t page) {
 
 // set all the RAM data of a page at once; page does not automatically increment
 void sh1106_send_buffer(uint8_t *buffer, uint buffer_size) {
-		uint8_t data[SH1106_MAX_COLUMNS+1] = {0};	// allocate space for control byte
+		uint8_t data[buffer_size+1];			// allocate space for control byte
 		data[0] = 0x40;								// send control byte followed by data bytes for RAM
 		memcpy(&data[1], buffer, buffer_size);
 		i2c_write_blocking(sh1106_i2c_instance, sh1106_i2c_address, data, buffer_size+1, false);
 	}
 
 void sh1106_clear_ram() {
+	sh1106_send_cmd(SH1106_SET_LINE | 0);
+	sh1106_set_column(0);
 	for(int i = 0; i < 8; i++) {
 		sh1106_set_page(i);
-		uint8_t data[SH1106_MAX_COLUMNS+1] = {0};
+		uint8_t data[SH1106_MAX_COLUMNS+1] = {0}; // allocate space for control byte
 		data[0] = 0x40;						// send control byte followed by data bytes for RAM
 		i2c_write_blocking(sh1106_i2c_instance, sh1106_i2c_address, data, SH1106_MAX_COLUMNS+1, false);
 	}
-
 }
 
-void sh1106_write_char_5x8(char c) {
+void sh1106_write_char5x8(uint8_t c) {
 	// make sure that 'c' is whithin limits
-	if (c < 32) c = 26;
-	else if (c > 126) c = 126;
+	if (c < 32) c = 32;
+	else if (c > 130) c = 130;
 	c -= 32; // ajust c to the font array
 	sh1106_send_buffer(font[c], 5);
 }
 
-void sh1106_print_5x8(char *str) {
+void sh1106_print5x8(char *str) {
 	int len = strlen(str);
 	for(int i = 0; i < len; i++) {
-		sh1106_write_char_5x8(str[i]);
+		if(str[i] != '\n') {
+		sh1106_write_char5x8(str[i]);
+		sh1106_write_ram(0x00); // leave empty space between characters	
+		}
+	
 	}	
 }
 void sh1106_init(uint scl, uint sda) {
@@ -191,4 +206,5 @@ void sh1106_init(uint scl, uint sda) {
 	sh1106_send_cmd(0xFF);					// set contrast to max and release contrast mode
 	sh1106_send_cmd(SH1106_SET_LINE | 0);
 	sh1106_set_column(0);
+	sh1106_set_page(0);
 }
