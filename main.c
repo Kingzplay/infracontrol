@@ -1,13 +1,12 @@
 #include <stdio.h>
 #include "sh1106.h"
 #include "ui.h"
+#include "joystick.h"
 #include <stdbool.h>
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
 
-
-uint8_t k[8] = {0, 0, 0xFF, 0x10, 0x30, 0x6f, 0xC0, 0};
-
+// initialize our ui
 menu screen;
 
 int main() {
@@ -26,8 +25,29 @@ int main() {
 	ui_print_centered_str5x8_separator("Settings", false);
 	sh1106_set_page(0);
 	ui_draw_mode_screen(&screen);
-	
 
-	while (1); 
+	joystick_init();
+	
+	while (1) {
+		if (joystick_down()) {
+			ui_handler(&screen, Down);
+			printf("Down\n");
+		}
+		else if (joystick_up()) {
+			ui_handler(&screen, Up);
+			printf("Up\n");
+		}
+		else if (joystick_left()) {
+			ui_handler(&screen, Left);
+			printf("Left\n");		
+		}
+		else if (joystick_right()) {
+			ui_handler(&screen, Right);
+			printf("Right\n");
+		}
+		
+		sleep_ms(100);
+		joystick_print_state();
+	} 
 	return 0;
 } 

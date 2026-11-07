@@ -11,6 +11,9 @@
 #define UI_LOWER_SEPARATOR_LINE 50
 #define VERTICAL_OFFSET 3 	// how many pixels between the characters and the display limit; max value 8
 #define UI_SEPARATOR_HEIGHT 12 // distance in pixels between the separator and the display limit; choose from [8;15]
+	
+char *actions_mode_menu[] = {"Yes", "No", "Exit"};
+char *items_mode_menu[] = {"Record", "Saves", "Settings"};
 
 
 
@@ -157,17 +160,38 @@ void ui_draw_screen_struct(menu *screen) {
 
 void ui_draw_mode_screen(menu *screen) {
 	
-	char *actions[] = {"Yes", "No", "Exit"};
-	char *items[] = {"Record", "Saves", "Settings"};
-
 	strcpy(screen->name, "Mode");
-	screen->actions = actions;
-	screen->number_of_actions = sizeof(actions)/sizeof(actions[0]);
-	screen->selected_action = 1;
-	screen->items = items;
-	screen->number_of_items = sizeof(items)/sizeof(items[0]);
+	screen->actions = actions_mode_menu;
+	screen->number_of_actions = sizeof(actions_mode_menu)/sizeof(actions_mode_menu[0]);
+	screen->selected_action = 0;
+	screen->items = items_mode_menu;
+	screen->number_of_items = sizeof(items_mode_menu)/sizeof(items_mode_menu[0]);
 	screen->selected_item = 0;
 	ui_draw_screen_struct(screen);
 
 
 	}
+
+
+void ui_handler(menu *screen, Direction dir) {
+	if (dir == Left) {
+		screen->selected_action = (screen->selected_action == 0 ? 0 : screen->selected_action - 1);
+	}
+
+	else if (dir == Right) {
+		int max = screen->number_of_actions - 1;
+		screen->selected_action = (screen->selected_action == max ? max : screen->selected_action + 1);
+	}
+
+	if (dir == Up) {
+		screen->selected_item = (screen->selected_item == 0 ? 0 : screen->selected_item - 1);
+	}
+
+	else if (dir == Down) {
+		int max = screen->number_of_items - 1;
+		screen->selected_item = (screen->selected_item == max ? max : screen->selected_item + 1);
+	}
+
+	ui_draw_screen_struct(screen);
+	sleep_ms(750);
+}
