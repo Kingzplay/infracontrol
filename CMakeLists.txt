@@ -20,10 +20,12 @@ add_executable(${CMAKE_PROJECT_NAME}
 	sh1106.c
 	ui.c
 	joystick.c
+	ir.c
+	flash.c
 )
 
 # Add pico_stdlib library which aggregates commonly used features
-target_link_libraries(${CMAKE_PROJECT_NAME} pico_stdlib hardware_adc hardware_i2c hardware_clocks hardware_timer hardware_pwm)
+target_link_libraries(${CMAKE_PROJECT_NAME} pico_stdlib pico_flash hardware_flash hardware_adc hardware_i2c hardware_clocks hardware_timer hardware_pwm)
 
 # enable usb communication
 pico_enable_stdio_usb(${CMAKE_PROJECT_NAME} 1)

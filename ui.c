@@ -11,10 +11,16 @@
 #define UI_LOWER_SEPARATOR_LINE 50
 #define VERTICAL_OFFSET 3 	// how many pixels between the characters and the display limit; max value 8
 #define UI_SEPARATOR_HEIGHT 12 // distance in pixels between the separator and the display limit; choose from [8;15]
-	
-char *actions_mode_menu[] = {"Yes", "No", "Exit"};
+
+const char yes[] = "Yes";
+const char no[] = "No";
+const char exit[] = "Exit";	
+
+char *actions_mode_menu[] = {yes, no, exit};
 char *items_mode_menu[] = {"Record", "Saves", "Settings"};
 
+char *actons_record_menu[] = {exit};
+char *items_record_menu = NULL; 
 
 
 // i could write this with fewer lines, it would be less modular though
@@ -127,34 +133,53 @@ void ui_draw_fraction(uint8_t num, uint8_t den, uint8_t col) {
 	sh1106_send_buffer(numbers[den%100],3);
 
 }
-void ui_draw_screen_struct(menu *screen) {
-	sh1106_clear_ram(); 																			// clear display
-	ui_draw_separators();
-	ui_print_centered_str5x8_separator(screen->name, false);										// write menu name on top
-	ui_print_centered_str5x8_separator(screen->actions[screen->selected_action], true); 			// write selected actions down
-	if (screen->selected_action > 0) ui_draw_separator_arrows(true, false);								 	// draw left arrow
-	if (screen->selected_action < (screen->number_of_actions - 1)) ui_draw_separator_arrows(false, true); 	// draw right arrow
-	
-	// draw center screen
-	
-	uint8_t center = sh1106_display_width / 2 - 1;	
-	uint8_t scroll_fraction_col = 0;
-
-	sh1106_set_page(3);
-	sh1106_set_column(center - 6*strlen(screen->items[screen->selected_item])/2);	// center the text
-	sh1106_print5x8(screen->items[screen->selected_item]);
-	if (screen->selected_item > 0) {
-		sh1106_set_page(2);
-		sh1106_set_column(scroll_fraction_col+1); 
-		sh1106_write_char5x8(UP_ARROW_TIP);
-	
-	}								 	
-	if (screen->selected_item < (screen->number_of_items - 1)) {
-		sh1106_set_page(5);
-		sh1106_set_column(scroll_fraction_col+1); 
-		sh1106_write_char5x8(DOWN_ARROW_TIP);
+void ui_clear_center() {
+	uint8_t buffer[sh1106_display_width];
+	memset(buffer, 0x00, sh1106_display_width);
+	for(int i = 2; i < 6; i++) {
+		sh1106_set_page(i);
+		sh1106_set_column(0);
+		sh1106_send_buffer(buffer, sh1106_display_width);
 	}
-	ui_draw_fraction(screen->selected_item + 1, screen->number_of_items, scroll_fraction_col);
+}
+void ui_draw_screen_struct(menu *screen, bool upper_separator, bool center, bool lower_separator) {
+
+	if (upper_separator) {
+		ui_draw_separators();		// if we're changing the upper separator then we're redrawing everything; always draw this first
+		ui_clear_separator(false);								// clear upper separator	
+		ui_print_centered_str5x8_separator(screen->name, false);// write menu name on top
+	}	
+
+	if (center) {	
+		ui_clear_center();
+		// draw center screen	
+		uint8_t center = sh1106_display_width / 2 - 1;	
+		uint8_t scroll_fraction_col = 0;
+
+		sh1106_set_page(3);
+		sh1106_set_column(center - 6*strlen(screen->items[screen->selected_item])/2);	// center the text
+		sh1106_print5x8(screen->items[screen->selected_item]);
+		if (screen->selected_item > 0) {
+			sh1106_set_page(2);
+			sh1106_set_column(scroll_fraction_col+1); 
+			sh1106_write_char5x8(UP_ARROW_TIP);
+		
+		}								 	
+		if (screen->selected_item < (screen->number_of_items - 1)) {
+			sh1106_set_page(5);
+			sh1106_set_column(scroll_fraction_col+1); 
+			sh1106_write_char5x8(DOWN_ARROW_TIP);
+		}
+		ui_draw_fraction(screen->selected_item + 1, screen->number_of_items, scroll_fraction_col);
+	}
+
+	if (lower_separator) {
+		ui_clear_separator(true);	// clear lower separator	
+		ui_print_centered_str5x8_separator(screen->actions[screen->selected_action], true);	// write selected actions down
+		if (screen->selected_action > 0) ui_draw_separator_arrows(true, false);								 	// draw left arrow
+		if (screen->selected_action < (screen->number_of_actions - 1)) ui_draw_separator_arrows(false, true); 	// draw right arrow
+
+	}
 
 }
 
@@ -167,31 +192,57 @@ void ui_draw_mode_screen(menu *screen) {
 	screen->items = items_mode_menu;
 	screen->number_of_items = sizeof(items_mode_menu)/sizeof(items_mode_menu[0]);
 	screen->selected_item = 0;
-	ui_draw_screen_struct(screen);
+	screen->current_menu = Menu;
+	ui_draw_screen_struct(screen, true , true, true);
 
 
 	}
 
 
+void ui_draw_record_screen(menu *screen) {
+	
+	strcpy(screen->name, "Record");
+	screen->actions = actions_record_menu;
+	screen->number_of_actions = sizeof(actions_record_menu)/sizeof(actions_record_menu[0]);
+	screen->selected_action = 0;
+	screen->items = items_record_menu;
+	screen->number_of_items = 0; 
+	screen->selected_item = 0;
+	screen->current_menu = Record;
+	ui_draw_screen_struct(screen, true , true, true);
+}
+
 void ui_handler(menu *screen, Direction dir) {
 	if (dir == Left) {
 		screen->selected_action = (screen->selected_action == 0 ? 0 : screen->selected_action - 1);
+		ui_draw_screen_struct(screen, false, false, true);
 	}
 
 	else if (dir == Right) {
 		int max = screen->number_of_actions - 1;
 		screen->selected_action = (screen->selected_action == max ? max : screen->selected_action + 1);
+		ui_draw_screen_struct(screen, false, false, true);
 	}
 
 	if (dir == Up) {
 		screen->selected_item = (screen->selected_item == 0 ? 0 : screen->selected_item - 1);
+		ui_draw_screen_struct(screen, false, true, false);
 	}
 
 	else if (dir == Down) {
 		int max = screen->number_of_items - 1;
 		screen->selected_item = (screen->selected_item == max ? max : screen->selected_item + 1);
+		ui_draw_screen_struct(screen, false, true, false);
 	}
 
-	ui_draw_screen_struct(screen);
+	else if (dir == Button) {
+		switch(screen->current_menu) {
+			case Mode:
+				// only one action which is select
+				ui_draw_record_menu(screen);
+				break;
+
+		} 	
+	}
 	sleep_ms(750);
 }

@@ -8,7 +8,9 @@
 #define SEPARATOR_STR_LENGTH 20
 
 typedef enum {
-	Left, Right, Up, Down} Direction;
+	Left, Right, Up, Down, Button} Direction;
+
+typedef enum { Mode, Record, Saves, Settings} currentMenu;
 
 typedef struct {
 	char name[SEPARATOR_STR_LENGTH];	// name of the menu, shown in the upper separator
@@ -18,13 +20,13 @@ typedef struct {
 	char **items;						// list of items shown on center screen
 	int number_of_items;				
 	int selected_item;					// index of the item currently shown on screen
-	
+	currentMenu current_menu;	
 } menu;
 
 void ui_draw_separators(); 
 void ui_write_char5x8_separator(char c, uint8_t col, bool lower_separator);
 void ui_print_centered_str5x8_separator(char *str, bool lower_separator);
-void ui_draw_screen_struct(menu *screen);
+void ui_draw_screen_struct(menu *screen, bool upper_separator, bool center, bool lower_separator);
 void ui_draw_mode_screen(menu *screen);
 void ui_handler(menu *screen, Direction dir);
 #endif
