@@ -24,7 +24,7 @@ int main() {
 	ui_write_char5x8_separator('A',20, true);
 	ui_print_centered_str5x8_separator("Settings", false);
 	sh1106_set_page(0);
-	ui_draw_mode_screen(&screen);
+	ui_init(&screen);
 
 	joystick_init();
 	
@@ -45,7 +45,11 @@ int main() {
 			ui_handler(&screen, Right);
 			printf("Right\n");
 		}
-		
+		else if (joystick_pressed()) {
+			ui_handler(&screen, Pressed);
+			printf("Right\n");
+
+		}		
 		sleep_ms(100);
 		joystick_print_state();
 	} 

@@ -14,5 +14,6 @@ bool joystick_left();
 bool joystick_right();
 bool joystick_up();
 bool joystick_down();
+bool joystick_pressed();
 void joystick_print_state();
 #endif

@@ -12,15 +12,54 @@
 #define VERTICAL_OFFSET 3 	// how many pixels between the characters and the display limit; max value 8
 #define UI_SEPARATOR_HEIGHT 12 // distance in pixels between the separator and the display limit; choose from [8;15]
 
-const char yes[] = "Yes";
-const char no[] = "No";
-const char exit[] = "Exit";	
+// a word bank useful in if and switch statements later
+char *bank[] = {
+	"Yes",
+	"No",
+	"Exit",
+	"Select",
+	"Play",
+	"Delete",
+	"Record",
+	"Saves",
+	"Settings",
+	"Recording..."
+}; 
 
-char *actions_mode_menu[] = {yes, no, exit};
-char *items_mode_menu[] = {"Record", "Saves", "Settings"};
+// the state where you select Record mode, Saves mode etc...
+menu mode_screen = {
+	"Mode", 									// name
+	(wordBank[]) {Select}, 						// list of actions showed in the lower box
+	1,											// number of actions
+	0,											// selected action in array
+	(wordBank[]) {Record, Saves, Settings},		// list of items shows in the center
+	3,											// number of items
+	0,											// selected action in array
+	ModeMenu,									// currentMenu
+};
 
-char *actons_record_menu[] = {exit};
-char *items_record_menu = NULL; 
+// the state where you record IR signals
+menu record_screen = {
+	"Record", 					// name
+	(wordBank[]) {Exit},		// list of actions showed in the lower box
+	1,							// number of actions
+	0,							// selected action in array
+	(wordBank[]) {Recording},	// list of items shows in the center
+	1,							// number of items
+	0,							// selected action in array
+	RecordMenu,					// currentMenu
+};
+
+menu saves_screen = {
+	"Saves", 							// name
+	(wordBank[]) {Play, Delete, Exit}, 	// list of actions showed in the lower box
+	3,									// number of actions
+	0,									// selected action in array
+	NULL,								// list of items shows in the center
+	99,									// number of items
+	0,									// selected action in array
+	SavesMenu,							// currentMenu
+};
 
 
 // i could write this with fewer lines, it would be less modular though
@@ -130,7 +169,7 @@ void ui_draw_fraction(uint8_t num, uint8_t den, uint8_t col) {
 	sh1106_set_column(col);
 	sh1106_send_buffer(numbers[den/10],3);
 	sh1106_write_ram(0x00);
-	sh1106_send_buffer(numbers[den%100],3);
+	sh1106_send_buffer(numbers[den%10],3);
 
 }
 void ui_clear_center() {
@@ -152,13 +191,24 @@ void ui_draw_screen_struct(menu *screen, bool upper_separator, bool center, bool
 
 	if (center) {	
 		ui_clear_center();
-		// draw center screen	
+		// draw center screen and center the text
 		uint8_t center = sh1106_display_width / 2 - 1;	
 		uint8_t scroll_fraction_col = 0;
 
 		sh1106_set_page(3);
-		sh1106_set_column(center - 6*strlen(screen->items[screen->selected_item])/2);	// center the text
-		sh1106_print5x8(screen->items[screen->selected_item]);
+		
+		// print center screen item with SavesMenu being a special case
+		if(screen->current_menu == SavesMenu) { 
+			sh1106_set_column(center - 6*8/2); // center text
+			char buffer[8];
+			snprintf(buffer, 8, "Save %d", screen->selected_item + 1);
+			sh1106_print5x8(buffer);
+		}
+		else {
+			sh1106_set_column(center - 6*strlen(bank[screen->items[screen->selected_item]])/2);	// center the text
+			sh1106_print5x8(bank[screen->items[screen->selected_item]]);
+		}
+		// draw fraction on side
 		if (screen->selected_item > 0) {
 			sh1106_set_page(2);
 			sh1106_set_column(scroll_fraction_col+1); 
@@ -175,7 +225,7 @@ void ui_draw_screen_struct(menu *screen, bool upper_separator, bool center, bool
 
 	if (lower_separator) {
 		ui_clear_separator(true);	// clear lower separator	
-		ui_print_centered_str5x8_separator(screen->actions[screen->selected_action], true);	// write selected actions down
+		ui_print_centered_str5x8_separator(bank[screen->actions[screen->selected_action]], true);	// write selected actions down
 		if (screen->selected_action > 0) ui_draw_separator_arrows(true, false);								 	// draw left arrow
 		if (screen->selected_action < (screen->number_of_actions - 1)) ui_draw_separator_arrows(false, true); 	// draw right arrow
 
@@ -183,33 +233,51 @@ void ui_draw_screen_struct(menu *screen, bool upper_separator, bool center, bool
 
 }
 
-void ui_draw_mode_screen(menu *screen) {
-	
-	strcpy(screen->name, "Mode");
-	screen->actions = actions_mode_menu;
-	screen->number_of_actions = sizeof(actions_mode_menu)/sizeof(actions_mode_menu[0]);
-	screen->selected_action = 0;
-	screen->items = items_mode_menu;
-	screen->number_of_items = sizeof(items_mode_menu)/sizeof(items_mode_menu[0]);
-	screen->selected_item = 0;
-	screen->current_menu = Menu;
+void ui_init(menu *screen) {
+	*screen = mode_screen;
 	ui_draw_screen_struct(screen, true , true, true);
+}
 
-
+void ui_handle_button_press(menu *screen) {
+	int i = screen->selected_action;
+	int j = screen->selected_item;
+	
+	if (screen->current_menu == ModeMenu) {
+		// enter Record, Saves or Settings screen 
+		switch(screen->items[j]) {
+			case Record:
+				*screen = record_screen;
+				break;
+			case Saves:
+				*screen = saves_screen;
+				break;
+			case Settings:
+				printf("Bruh");
+				break;			
+		}
+		ui_draw_screen_struct(screen, true, true, true);
 	}
-
-
-void ui_draw_record_screen(menu *screen) {
-	
-	strcpy(screen->name, "Record");
-	screen->actions = actions_record_menu;
-	screen->number_of_actions = sizeof(actions_record_menu)/sizeof(actions_record_menu[0]);
-	screen->selected_action = 0;
-	screen->items = items_record_menu;
-	screen->number_of_items = 0; 
-	screen->selected_item = 0;
-	screen->current_menu = Record;
-	ui_draw_screen_struct(screen, true , true, true);
+	else if (screen->current_menu == RecordMenu) {
+		// in the Record screen the only possible action is 'Exit'
+		*screen = mode_screen;
+		ui_draw_screen_struct(screen, true , true, true);
+		
+	}
+	else if (screen->current_menu == SavesMenu) {
+		switch(screen->actions[i]) {
+			case Play:
+				printf("I ain't dealing with that\n");
+				break;
+			case Delete:
+				printf("Ain't dealing with that either\n");
+				break;
+			case Exit:
+				*screen = mode_screen;
+				ui_draw_screen_struct(screen, true, true, true);
+				break;
+		}	
+	}	
+ 
 }
 
 void ui_handler(menu *screen, Direction dir) {
@@ -235,14 +303,8 @@ void ui_handler(menu *screen, Direction dir) {
 		ui_draw_screen_struct(screen, false, true, false);
 	}
 
-	else if (dir == Button) {
-		switch(screen->current_menu) {
-			case Mode:
-				// only one action which is select
-				ui_draw_record_menu(screen);
-				break;
-
-		} 	
-	}
+	else if (dir == Pressed) {
+		ui_handle_button_press(screen);
+	}	
 	sleep_ms(750);
 }

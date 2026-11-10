@@ -5,19 +5,18 @@
 #include <stdbool.h>
 #include "pico/stdlib.h"
 
-#define SEPARATOR_STR_LENGTH 20
+typedef enum {Left, Right, Up, Down, Pressed} Direction;
 
-typedef enum {
-	Left, Right, Up, Down, Button} Direction;
+typedef enum { ModeMenu, RecordMenu, SavesMenu, SettingsMenu, SaveSignalMenu} currentMenu;
 
-typedef enum { Mode, Record, Saves, Settings} currentMenu;
+typedef enum { Yes, No, Exit, Select, Play, Delete, Record, Saves, Settings, Recording } wordBank;
 
 typedef struct {
-	char name[SEPARATOR_STR_LENGTH];	// name of the menu, shown in the upper separator
-	char **actions;						// contains a list of strings shown in the lower separator
+	char *name;								// name of the menu, shown in the upper separator
+	wordBank *actions;						// contains a list of strings shown in the lower separator
 	uint8_t number_of_actions;
 	int8_t selected_action;				// index of selected action
-	char **items;						// list of items shown on center screen
+	wordBank *items;						// list of items shown on center screen
 	int number_of_items;				
 	int selected_item;					// index of the item currently shown on screen
 	currentMenu current_menu;	
@@ -29,4 +28,5 @@ void ui_print_centered_str5x8_separator(char *str, bool lower_separator);
 void ui_draw_screen_struct(menu *screen, bool upper_separator, bool center, bool lower_separator);
 void ui_draw_mode_screen(menu *screen);
 void ui_handler(menu *screen, Direction dir);
+void ui_init(menu *screen);
 #endif

@@ -10,7 +10,7 @@ void joystick_init() {
 	gpio_init(joystick_y);
 	gpio_init(joystick_z);
 	gpio_set_dir(joystick_z, 0); // set up joystick buttona as input
-	gpio_pull_down(joystick_z);
+	gpio_pull_up(joystick_z);
 
 	adc_init();
 }
@@ -41,11 +41,15 @@ bool joystick_down() {
 	else return false;
 }
 
+bool joystick_pressed() {
+	return !gpio_get(joystick_z);	
+}
+
 void joystick_print_state() {
 	adc_select_input(joystick_x-26);
 	int x = adc_read();
 	adc_select_input(joystick_y-26);
 	int y = adc_read();	
 	
-	printf("X is %d and Y is %d\n",x , y);	
+	printf("X is %d and Y is %d and Z is %d\n",x , y, !gpio_get(joystick_z));	
 }
