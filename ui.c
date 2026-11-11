@@ -1,5 +1,4 @@
 #include "ui.h"
-#include "sh1106.h"
 
 #define RIGHT_ARROW_TIP 127 
 #define LEFT_ARROW_TIP	128
@@ -12,18 +11,24 @@
 #define VERTICAL_OFFSET 3 	// how many pixels between the characters and the display limit; max value 8
 #define UI_SEPARATOR_HEIGHT 12 // distance in pixels between the separator and the display limit; choose from [8;15]
 
+
+uint16_t ir_timing_data[MAX_TIMING_ARRAY];
+
 // a word bank useful in if and switch statements later
 char *bank[] = {
 	"Yes",
 	"No",
 	"Exit",
+	"Ok",
 	"Select",
 	"Play",
 	"Delete",
 	"Record",
 	"Saves",
 	"Settings",
-	"Recording..."
+	"Recording...",
+	"Credits"
+
 }; 
 
 // the state where you select Record mode, Saves mode etc...
@@ -32,8 +37,8 @@ menu mode_screen = {
 	(wordBank[]) {Select}, 						// list of actions showed in the lower box
 	1,											// number of actions
 	0,											// selected action in array
-	(wordBank[]) {Record, Saves, Settings},		// list of items shows in the center
-	3,											// number of items
+	(wordBank[]) {Record, Saves, Settings, Credits},		// list of items shows in the center
+	4,											// number of items
 	0,											// selected action in array
 	ModeMenu,									// currentMenu
 };
@@ -50,6 +55,29 @@ menu record_screen = {
 	RecordMenu,					// currentMenu
 };
 
+menu display_capture_screen = {
+	"Save capture",
+	(wordBank[]) {Ok},
+	1,
+	0,
+	NULL,
+	1,
+	0,
+	DisplayCaptureMenu
+
+};
+
+menu save_capture_screen = {
+	"Save capture", 				// name
+	(wordBank[]) {Select, Exit},	// list of actions showed in the lower box
+	2,								// number of actions
+	0,								// selected action in array
+	NULL,							// list of items shows in the center
+	99,								// number of items
+	0,								// selected action in array
+	SaveCaptureMenu,						// currentMenu
+};
+
 menu saves_screen = {
 	"Saves", 							// name
 	(wordBank[]) {Play, Delete, Exit}, 	// list of actions showed in the lower box
@@ -61,6 +89,16 @@ menu saves_screen = {
 	SavesMenu,							// currentMenu
 };
 
+menu credits_screen = {
+	"Credits", 							// name
+	(wordBank[]) {Exit}, 	// list of actions showed in the lower box
+	1,									// number of actions
+	0,									// selected action in array
+	NULL,								// list of items shows in the center
+	1,									// number of items
+	0,									// selected action in array
+	CreditsMenu,							// currentMenu
+};
 
 // i could write this with fewer lines, it would be less modular though
 void ui_draw_separators() {	
@@ -148,7 +186,7 @@ void ui_draw_fraction(uint8_t num, uint8_t den, uint8_t col) {
 							 {0x3A, 0x2A, 0x2E},	// 2
 							 {0x2A, 0x2A, 0x3E}, 	// 3
 							 {0x0E, 0x08, 0x3E},	// 4
-							 {0x2E, 0x1A, 0x3A},	// 5
+							 {0x2E, 0x2A, 0x3A},	// 5
 							 {0x3E, 0x2A, 0x3A},	// 6
 							 {0x02, 0x02, 0x3E},	// 7
 							 {0x3E, 0x2A, 0x3E},	// 8
@@ -198,11 +236,26 @@ void ui_draw_screen_struct(menu *screen, bool upper_separator, bool center, bool
 		sh1106_set_page(3);
 		
 		// print center screen item with SavesMenu being a special case
-		if(screen->current_menu == SavesMenu) { 
+		if(screen->current_menu == SavesMenu || screen->current_menu == SaveCaptureMenu) { 
 			sh1106_set_column(center - 6*8/2); // center text
 			char buffer[8];
 			snprintf(buffer, 8, "Save %d", screen->selected_item + 1);
 			sh1106_print5x8(buffer);
+		}
+		
+		else if(screen->current_menu == DisplayCaptureMenu) {
+			sh1106_set_column(center - 6*8/2); // center text
+			char buffer[8];
+			sh1106_print5x8("Got: ");
+		}
+		
+		else if(screen->current_menu == CreditsMenu) {
+			sh1106_set_column(center - 6*10/2); // center text
+			sh1106_print5x8("Written by");
+			sh1106_set_page(4);
+			sh1106_set_column(center - 6*13/2);
+			sh1106_print5x8("Kamel Hassoun");
+			sh1106_set_page(3);
 		}
 		else {
 			sh1106_set_column(center - 6*strlen(bank[screen->items[screen->selected_item]])/2);	// center the text
@@ -233,6 +286,27 @@ void ui_draw_screen_struct(menu *screen, bool upper_separator, bool center, bool
 
 }
 
+void ui_handle_record(menu *screen) {
+	*screen = record_screen;	
+	ui_draw_screen_struct(screen, true, true, true);
+	if(ir_receive(ir_timing_data)) {
+		*screen = display_capture_screen;
+		ui_draw_screen_struct(screen, true, true, true);
+		printf("{");
+				for(int i = 0; i < 99; i++) {
+					printf("%d, ", ir_timing_data[i]);
+				}	
+				printf("}\n");
+		while(!joystick_pressed());
+		*screen = save_capture_screen;
+	}
+	// if the 'ir_record' yields false then the user pressed the joystick to exit
+	else {
+		*screen = mode_screen;
+	}
+
+}
+
 void ui_init(menu *screen) {
 	*screen = mode_screen;
 	ui_draw_screen_struct(screen, true , true, true);
@@ -246,7 +320,7 @@ void ui_handle_button_press(menu *screen) {
 		// enter Record, Saves or Settings screen 
 		switch(screen->items[j]) {
 			case Record:
-				*screen = record_screen;
+				ui_handle_record(screen);
 				break;
 			case Saves:
 				*screen = saves_screen;
@@ -254,6 +328,9 @@ void ui_handle_button_press(menu *screen) {
 			case Settings:
 				printf("Bruh");
 				break;			
+			case Credits:
+				*screen = credits_screen;
+				break; 
 		}
 		ui_draw_screen_struct(screen, true, true, true);
 	}
@@ -266,10 +343,16 @@ void ui_handle_button_press(menu *screen) {
 	else if (screen->current_menu == SavesMenu) {
 		switch(screen->actions[i]) {
 			case Play:
-				printf("I ain't dealing with that\n");
+				flash_read_slot(j+1, ir_timing_data);
+				printf("{");
+				for(int i = 0; i < 99; i++) {
+					printf("%d, ", ir_timing_data[i]);
+				}	
+				printf("}\n");
+				ir_send(ir_timing_data);
 				break;
 			case Delete:
-				printf("Ain't dealing with that either\n");
+				flash_write_slot(j+1, NULL);	
 				break;
 			case Exit:
 				*screen = mode_screen;
@@ -277,7 +360,23 @@ void ui_handle_button_press(menu *screen) {
 				break;
 		}	
 	}	
- 
+
+	else if(screen->current_menu == SaveCaptureMenu) {
+		switch(screen->actions[i]) {
+			case Select:
+				flash_write_slot(j+1, ir_timing_data); 
+				*screen = mode_screen;
+				break;
+			case Exit:
+				*screen = mode_screen;
+		}
+		ui_draw_screen_struct(screen, true, true, true);
+	}
+
+	else if(screen->current_menu == CreditsMenu) {
+		*screen = mode_screen;
+		ui_draw_screen_struct(screen, true, true, true);
+	} 
 }
 
 void ui_handler(menu *screen, Direction dir) {

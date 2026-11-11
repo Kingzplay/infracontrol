@@ -1,6 +1,6 @@
 #include "flash.h"
 
-#define FLASH_SLOT_SIZE 4096 // must be a multiple of 4096 otherwise flash_range_erase won't work
+#define FLASH_TARGET_OFFSET 2048*1024 // must be a multiple of 4096 otherwise flash_range_erase won't work
 
 
 
@@ -20,18 +20,18 @@ static void call_flash_range_program(void *param) {
     flash_range_program(offset, data, FLASH_PAGE_SIZE);
 }
 
-void flash_write_slot(uint8_t slot, uint32_t ir_timing_data[MAX_TIMING_ARRAY]) {
+void flash_write_slot(uint8_t slot, uint16_t ir_timing_data[MAX_TIMING_ARRAY]) {
 	// we have 99 save slots
 	if (slot < 1) slot = 1;
 	if (slot > 99) slot = 99;
 
 	
 	// erase data first	
-	flash_safe_execute(call_flash_range_erase, (void*)(FLASH_SLOT_SIZE*slot), UINT32_MAX);
+	flash_safe_execute(call_flash_range_erase, (void*)(FLASH_TARGET_OFFSET - slot*FLASH_SECTOR_SIZE), UINT32_MAX);
 
 	// if ir_timing_data is NULL then the user is asking to delete the slot data so we leave the slot in the erased state
 	if (ir_timing_data != NULL) {
-		uintptr_t params[] = {FLASH_SLOT_SIZE*slot, (uintptr_t)ir_timing_data};
+		uintptr_t params[] = {FLASH_TARGET_OFFSET - slot*FLASH_SECTOR_SIZE, (uintptr_t)ir_timing_data};
 		// write data
 		flash_safe_execute(call_flash_range_program, params, UINT32_MAX);
 	}
@@ -41,5 +41,11 @@ void flash_write_slot(uint8_t slot, uint32_t ir_timing_data[MAX_TIMING_ARRAY]) {
 
 }
 
+void flash_read_slot(uint8_t slot, uint16_t ir_timing_data[MAX_TIMING_ARRAY]) {
+		uint16_t *ptr = (uint16_t *)(XIP_BASE + FLASH_TARGET_OFFSET - slot*FLASH_SECTOR_SIZE);
+		for(int i = 0; i < MAX_TIMING_ARRAY; i++) {
+			ir_timing_data[i] = *(ptr+i);
+		}
+}
 
 

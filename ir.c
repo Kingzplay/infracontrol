@@ -26,7 +26,7 @@ void set_pwm_frequency(uint slice_num, uint channel, uint32_t target_freq, uint8
 
 }
 
-void ir_receive(uint32_t *ir_timing_data) {
+bool ir_receive(uint16_t *ir_timing_data) {
 	gpio_init(IR_RECEIVER_PIN);
 	gpio_pull_up(IR_RECEIVER_PIN);
 	
@@ -37,7 +37,8 @@ void ir_receive(uint32_t *ir_timing_data) {
 	int index = 0;			// index the ir timing array
 	
 	while (index < MAX_TIMING_ARRAY)  {
-		while (gpio_get(IR_RECEIVER_PIN) &&  (!ir_transmission_started || ((time_us_64() - length) < IR_RECEIVER_SIGNAL_TIMEOUT)));
+		while (gpio_get(IR_RECEIVER_PIN) && !joystick_pressed() && (!ir_transmission_started || ((time_us_64() - length) < IR_RECEIVER_SIGNAL_TIMEOUT)));
+		if (joystick_pressed()) return false;
 
 		if (!ir_transmission_started) ir_transmission_started = true;
 
@@ -59,12 +60,12 @@ void ir_receive(uint32_t *ir_timing_data) {
 		index++;	
 		length = time_us_64();	
 	}
-	
+	return true;	
 }
 
 
 
-void ir_send(uint32_t *ir_timing_data) {
+void ir_send(uint16_t *ir_timing_data) {
 	gpio_init(IR_EMITTER_PIN);
 	gpio_set_function(IR_EMITTER_PIN, GPIO_FUNC_PWM);	
 	

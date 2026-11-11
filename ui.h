@@ -4,12 +4,15 @@
 #include <string.h>
 #include <stdbool.h>
 #include "pico/stdlib.h"
+#include "sh1106.h"
+#include "flash.h"
+#include "ir.h"
 
 typedef enum {Left, Right, Up, Down, Pressed} Direction;
 
-typedef enum { ModeMenu, RecordMenu, SavesMenu, SettingsMenu, SaveSignalMenu} currentMenu;
+typedef enum { ModeMenu, RecordMenu, SavesMenu, SettingsMenu, DisplayCaptureMenu , SaveCaptureMenu, CreditsMenu} currentMenu;
 
-typedef enum { Yes, No, Exit, Select, Play, Delete, Record, Saves, Settings, Recording } wordBank;
+typedef enum { Yes, No, Exit, Ok, Select, Play, Delete, Record, Saves, Settings, Recording, Credits} wordBank;
 
 typedef struct {
 	char *name;								// name of the menu, shown in the upper separator
