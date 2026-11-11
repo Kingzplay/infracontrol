@@ -13,6 +13,7 @@
 
 
 uint16_t ir_timing_data[MAX_TIMING_ARRAY];
+uint32_t ir_hash;
 
 // a word bank useful in if and switch statements later
 char *bank[] = {
@@ -235,18 +236,39 @@ void ui_draw_screen_struct(menu *screen, bool upper_separator, bool center, bool
 
 		sh1106_set_page(3);
 		
-		// print center screen item with SavesMenu being a special case
-		if(screen->current_menu == SavesMenu || screen->current_menu == SaveCaptureMenu) { 
-			sh1106_set_column(center - 6*8/2); // center text
+		// handle the many exceptions
+		if(screen->current_menu == SaveCaptureMenu) { 
+			sh1106_set_column(center - 6*7/2); // center text
 			char buffer[8];
-			snprintf(buffer, 8, "Save %d", screen->selected_item + 1);
+			snprintf(buffer, 8, "Save %02d", screen->selected_item + 1);
 			sh1106_print5x8(buffer);
+		}
+		else if(screen->current_menu == SavesMenu) { 
+				sh1106_set_page(2);
+				sh1106_set_column(center - 6*7/2); // center text
+				char buffer[8];
+				snprintf(buffer, 8, "Save %02d", screen->selected_item + 1);
+				sh1106_print5x8(buffer);
+				
+				char buffer2[11];
+				sh1106_set_page(4);
+				flash_read_slot(screen->selected_item + 1, ir_timing_data);
+				ir_hash = ir_hash_generator(ir_timing_data);						
+				snprintf(buffer2, 11, "0x%08X", ir_hash);
+				sh1106_set_column(center - 6*10/2); // center text
+				sh1106_print5x8(buffer2);
 		}
 		
 		else if(screen->current_menu == DisplayCaptureMenu) {
-			sh1106_set_column(center - 6*8/2); // center text
-			char buffer[8];
-			sh1106_print5x8("Got: ");
+			sh1106_set_column(center - 6*10/2); // center text
+			sh1106_set_page(2);
+			sh1106_print5x8("Received: ");
+
+			char buffer[11];
+			sh1106_set_page(4);					
+			snprintf(buffer, 11, "0x%08X", ir_hash);
+			sh1106_set_column(center - 6*10/2); // center text
+			sh1106_print5x8(buffer);
 		}
 		
 		else if(screen->current_menu == CreditsMenu) {
@@ -289,14 +311,11 @@ void ui_draw_screen_struct(menu *screen, bool upper_separator, bool center, bool
 void ui_handle_record(menu *screen) {
 	*screen = record_screen;	
 	ui_draw_screen_struct(screen, true, true, true);
-	if(ir_receive(ir_timing_data)) {
+	ir_hash = ir_receive(ir_timing_data);
+	if(ir_hash) {
 		*screen = display_capture_screen;
 		ui_draw_screen_struct(screen, true, true, true);
-		printf("{");
-				for(int i = 0; i < 99; i++) {
-					printf("%d, ", ir_timing_data[i]);
-				}	
-				printf("}\n");
+		ir_print_timing(ir_timing_data);	
 		while(!joystick_pressed());
 		*screen = save_capture_screen;
 	}
@@ -344,15 +363,12 @@ void ui_handle_button_press(menu *screen) {
 		switch(screen->actions[i]) {
 			case Play:
 				flash_read_slot(j+1, ir_timing_data);
-				printf("{");
-				for(int i = 0; i < 99; i++) {
-					printf("%d, ", ir_timing_data[i]);
-				}	
-				printf("}\n");
+				ir_print_timing(ir_timing_data);
 				ir_send(ir_timing_data);
 				break;
 			case Delete:
 				flash_write_slot(j+1, NULL);	
+				ui_draw_screen_struct(screen, false, true, false); // update hash value
 				break;
 			case Exit:
 				*screen = mode_screen;
@@ -405,5 +421,5 @@ void ui_handler(menu *screen, Direction dir) {
 	else if (dir == Pressed) {
 		ui_handle_button_press(screen);
 	}	
-	sleep_ms(750);
+	sleep_ms(250);
 }

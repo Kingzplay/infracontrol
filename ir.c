@@ -4,7 +4,7 @@
 
 // Stolen from gemini lol (partially modified) 
 void set_pwm_frequency(uint slice_num, uint channel, uint32_t target_freq, uint8_t duty_cycle) {
-    duty_cycle = (duty_cycle > 100 ? 100 : duty_cycle); // make duty cycle isn't superior to 100%
+    duty_cycle = (duty_cycle > 100 ? 100 : duty_cycle); // make sure duty cycle isn't superior to 100%
 	
 	uint32_t sys_clk = clock_get_hz(clk_sys);
     
@@ -26,7 +26,28 @@ void set_pwm_frequency(uint slice_num, uint channel, uint32_t target_freq, uint8
 
 }
 
-bool ir_receive(uint16_t *ir_timing_data) {
+uint16_t normalize(uint16_t x) {
+	if (x % 150 < 75) return x - x%150;
+	else return x + 150 - x%150;
+}
+
+// inspired by gemini
+// FNV-1 hash function
+uint32_t ir_hash_generator(uint16_t *ir_timing_data) {
+	if(!ir_timing_data[0]) return 0; // check if array is empty
+	uint32_t hash = 2166136261;
+	
+	for(int i = 0; i < MAX_TIMING_ARRAY; i++) {
+		if (!ir_timing_data[i]) break; // 0 marks end of array
+		uint32_t value = (uint32_t)normalize(ir_timing_data[i]);
+		hash ^= value;
+		hash *= 16777619;
+	}	
+	
+	return hash;
+}
+
+uint32_t ir_receive(uint16_t *ir_timing_data) {
 	gpio_init(IR_RECEIVER_PIN);
 	gpio_pull_up(IR_RECEIVER_PIN);
 	
@@ -38,7 +59,7 @@ bool ir_receive(uint16_t *ir_timing_data) {
 	
 	while (index < MAX_TIMING_ARRAY)  {
 		while (gpio_get(IR_RECEIVER_PIN) && !joystick_pressed() && (!ir_transmission_started || ((time_us_64() - length) < IR_RECEIVER_SIGNAL_TIMEOUT)));
-		if (joystick_pressed()) return false;
+		if (joystick_pressed()) return 0;
 
 		if (!ir_transmission_started) ir_transmission_started = true;
 
@@ -60,7 +81,7 @@ bool ir_receive(uint16_t *ir_timing_data) {
 		index++;	
 		length = time_us_64();	
 	}
-	return true;	
+	return ir_hash_generator(ir_timing_data);	
 }
 
 
@@ -75,16 +96,25 @@ void ir_send(uint16_t *ir_timing_data) {
 
 
 	for(int i = 0; i < MAX_TIMING_ARRAY; i++) {
-		if(i % 2) {	
+		if(!ir_timing_data[i]) break;	// 0ms marks the end of the IR data	
+	
+		else if(i % 2) {	
 			sleep_us(ir_timing_data[i]);
 		}	
 		else {
 			pwm_set_enabled(slice, true);	
 			sleep_us(ir_timing_data[i]);
 			pwm_set_enabled(slice, false);
-			gpio_put(IR_EMITTER_PIN, false);
 		}	
 
 	}
 
+}
+
+void ir_print_timing(uint16_t *ir_timing_data) {
+	printf("{");
+	for(int i = 0; i < MAX_TIMING_ARRAY; i++) {
+		printf("%d, ", ir_timing_data[i]);
+	}	
+	printf("}\n");
 }

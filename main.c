@@ -51,7 +51,7 @@ int main() {
 
 		}		
 		sleep_ms(100);
-		joystick_print_state();
+//		joystick_print_state();
 	} 
 	return 0;
 } 

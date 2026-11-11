@@ -43,9 +43,14 @@ void flash_write_slot(uint8_t slot, uint16_t ir_timing_data[MAX_TIMING_ARRAY]) {
 
 void flash_read_slot(uint8_t slot, uint16_t ir_timing_data[MAX_TIMING_ARRAY]) {
 		uint16_t *ptr = (uint16_t *)(XIP_BASE + FLASH_TARGET_OFFSET - slot*FLASH_SECTOR_SIZE);
-		for(int i = 0; i < MAX_TIMING_ARRAY; i++) {
-			ir_timing_data[i] = *(ptr+i);
+		if(*(ptr) == 0 || *(ptr) == UINT16_MAX) {
+			// in this case slot is empty (flash is filled with 1s to erase data)
+			for(int i = 0; i < MAX_TIMING_ARRAY; i++) ir_timing_data[i] = 0;
 		}
+		else {
+			for(int i = 0; i < MAX_TIMING_ARRAY; i++) {
+				ir_timing_data[i] = *(ptr+i);
+		}	}
 }
 
 
