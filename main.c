@@ -17,15 +17,7 @@ int main() {
 	sh1106_init(13, 12);
 	sh1106_set_column(0);
 
-	sh1106_set_column(127);
-	ui_draw_separators();
-	sh1106_set_column(20);
-	ui_write_char5x8_separator('j',20, false);
-	ui_write_char5x8_separator('A',20, true);
-	ui_print_centered_str5x8_separator("Settings", false);
-	sh1106_set_page(0);
 	ui_init(&screen);
-
 	joystick_init();
 	
 	while (1) {
@@ -51,7 +43,6 @@ int main() {
 
 		}		
 		sleep_ms(100);
-//		joystick_print_state();
 	} 
 	return 0;
 } 

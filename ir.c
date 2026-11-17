@@ -27,27 +27,27 @@ void set_pwm_frequency(uint slice_num, uint channel, uint32_t target_freq, uint8
 }
 
 uint16_t normalize(uint16_t x) {
-	if (x % 150 < 75) return x - x%150;
-	else return x + 150 - x%150;
+	if (x % 500 < 250) return x - x%500;
+	else return x + 500 - x%500;
 }
 
 // inspired by gemini
 // FNV-1 hash function
-uint32_t ir_hash_generator(uint16_t *ir_timing_data) {
+uint16_t ir_hash_generator(uint16_t *ir_timing_data) {
 	if(!ir_timing_data[0]) return 0; // check if array is empty
-	uint32_t hash = 2166136261;
+	uint16_t hash = 0x81BF;
 	
 	for(int i = 0; i < MAX_TIMING_ARRAY; i++) {
 		if (!ir_timing_data[i]) break; // 0 marks end of array
-		uint32_t value = (uint32_t)normalize(ir_timing_data[i]);
+		uint16_t value = normalize(ir_timing_data[i]);
 		hash ^= value;
-		hash *= 16777619;
+		hash *= 1099;
 	}	
 	
 	return hash;
 }
 
-uint32_t ir_receive(uint16_t *ir_timing_data) {
+uint16_t ir_receive(uint16_t *ir_timing_data) {
 	gpio_init(IR_RECEIVER_PIN);
 	gpio_pull_up(IR_RECEIVER_PIN);
 	

@@ -254,8 +254,8 @@ void ui_draw_screen_struct(menu *screen, bool upper_separator, bool center, bool
 				sh1106_set_page(4);
 				flash_read_slot(screen->selected_item + 1, ir_timing_data);
 				ir_hash = ir_hash_generator(ir_timing_data);						
-				snprintf(buffer2, 11, "0x%08X", ir_hash);
-				sh1106_set_column(center - 6*10/2); // center text
+				snprintf(buffer2, 11, "0x%04X", ir_hash);
+				sh1106_set_column(center - 6*6/2); // center text
 				sh1106_print5x8(buffer2);
 		}
 		
@@ -266,8 +266,8 @@ void ui_draw_screen_struct(menu *screen, bool upper_separator, bool center, bool
 
 			char buffer[11];
 			sh1106_set_page(4);					
-			snprintf(buffer, 11, "0x%08X", ir_hash);
-			sh1106_set_column(center - 6*10/2); // center text
+			snprintf(buffer, 11, "0x%04X", ir_hash);
+			sh1106_set_column(center - 6*6/2); // center text
 			sh1106_print5x8(buffer);
 		}
 		
@@ -316,6 +316,7 @@ void ui_handle_record(menu *screen) {
 		*screen = display_capture_screen;
 		ui_draw_screen_struct(screen, true, true, true);
 		ir_print_timing(ir_timing_data);	
+		printf("%04X\n", ir_hash);
 		while(!joystick_pressed());
 		*screen = save_capture_screen;
 	}
@@ -364,6 +365,7 @@ void ui_handle_button_press(menu *screen) {
 			case Play:
 				flash_read_slot(j+1, ir_timing_data);
 				ir_print_timing(ir_timing_data);
+				printf("%04X\n", ir_hash);
 				ir_send(ir_timing_data);
 				break;
 			case Delete:
