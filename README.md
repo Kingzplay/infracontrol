@@ -12,7 +12,9 @@ Connect the anode of the IR LED to a GPIO pin (default: pin 14)\
 Connect the SDA and SCL pins of a SH1106 controlled OLED to I2C compatible GPIO pins (default: pin 13 and pin 12)\
 You can change the default pins by changing the values of corresponding variables (check the header files to see the variable names) but make sure to pick the right pins by reading the RP2040 datasheet
 # Demonstration
-https://github.com/user-attachments/assets/be8f782c-5770-43fe-b8d0-3ddf1218281d \
+
+https://github.com/user-attachments/assets/99a036cd-90dd-46af-8063-5d2ead5c5cbf
+
 I unplugged the Pico halfway through to show that the signals are saved in the Flash memory (permanent memory)\
 Sorry for the bad filming
 # Notes
